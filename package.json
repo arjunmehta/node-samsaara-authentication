@@ -1,5 +1,6 @@
 {
   "name": "samsaara-authentication",
+  "private": true,
   "version": "0.0.0",
   "description": "node-samsaara-authentication ============================",
   "main": "main.js",

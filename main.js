@@ -1,0 +1,298 @@
+/*!
+ * Samsaara Groups Module
+ * Copyright(c) 2013 Arjun Mehta <arjun@newlief.com>
+ * MIT Licensed
+ */
+
+
+var helper = require('./helper');
+
+
+function authentication(options){
+
+  var config,
+      connectionController,
+      communication,
+      ipc,
+      authStore,
+      samsaara;
+
+  var addUserSession,
+      removeUserSession,
+      getRequestSessionInfo,
+      retrieveRegistrationToken,
+      validateRegistrationToken;
+
+
+  /**
+   * Foundation Methods
+   */
+
+
+  function loginConnection(loginObject, regToken){
+
+
+    console.log("Logging in connection", this.id, loginObject, regToken);
+
+
+    var connection = this;
+
+    // var loginObject = JSON.parse(messageObj.login[1]) || null;
+    var regTokenSalt = loginObject.tokenKey || null;
+    // var regToken = messageObj.login[0] || null;
+
+    // log.info(process.pid, moduleName, "messageObj.login", loginObject, regToken, regTokenSalt);
+
+    validateRegistrationToken(connection.id, regToken, regTokenSalt, function (err, reply){
+
+      console.log("validateRegistrationToken", connection.id, err, reply, loginObject, regToken);
+
+      if(err === null){
+
+        connection.sessionInfo = loginObject;
+
+        // log.info(process.pid, moduleName, "RECEIVING REQUEST TO LOGIN Samsaara CONNECTION", loginObject);
+
+        // generates a new token for the connection.
+        // integrated check for session validity.
+        initiateUserToken( connectionController.connections[connection.id], loginObject.sessionID, loginObject.userID, function (err, token, userID){
+
+          if(err !== null){
+            // log.error(process.pid, moduleName, "TOKEN ASSIGNMENT ERROR", err);
+            communication.sendToClient( connection.id, { internal: "reportError", args: [187, err, "Invalid Token Initiation: Session either Expired or Invalid"] });
+          }
+          else if(err === null && userID === loginObject.userID){
+
+            // log.info(process.pid, moduleName, "SENDING TOKEN TO", connection.id, userID, token);
+            samsaara.emit("connectionLoggedIn", connection, loginObject);
+
+            communication.sendToClient( connection.id, { internal: "updateToken", args: [connection.oldToken, token]}, function (token){
+              // 'this' is now the one returning the callBack.
+              // log.info(process.pid, moduleName, "DELETING OLD TOKEN for", this.id, this.oldToken, token);
+              this.oldToken = null;
+            });
+          }
+        });
+      }
+      else{
+        // log.error(process.pid, moduleName, "CONNECTION LOGIN ERROR:", err);
+      }
+    });
+  }
+
+  function requestRegistrationToken(callBack){
+
+    console.log(config.uuid, "Authentication", "CLIENT, requesting login Token", this.id);
+
+    authStore.generateRegistrationToken(this.id, function (err, regtoken){
+      if(typeof callBack === "function") callBack(err, regtoken);
+    });
+  }
+
+  function setRedisStore(){
+
+  }
+
+  function initiateUserToken(conn, sessionID, userID, callBack){
+
+    // console.log("INITIATING USER TOKEN", conn.id, sessionID, userID);
+
+    authStore.validUserSession(sessionID, userID, function (err, userSessions){
+
+      // console.log("validUserSession", sessionID, userID);
+
+      if(err === null && userSessions !== undefined){
+
+        authStore.addNewConnectionSession(conn.id, userID, sessionID, userSessions, function (err, userSessions){
+
+          // console.log("addNewConnectionSession", userSessions);
+
+          if(err === null){
+            updateConnectionUserID(conn, userID, function (token, userID){
+              if(typeof callBack === "function") callBack(err, token, userID);
+            });
+          }
+          else{
+            if(typeof callBack === "function") callBack(err, null, null);
+          }
+        });
+      }
+      else{
+        if(typeof callBack === "function") callBack(err, null, null);
+      }
+    });
+  }
+
+  function removeConnectionSession(connID, callBack){
+
+    var connection = connectionController.connections[connID];
+
+    if(connection !== undefined && connection.sessionInfo !== undefined){
+
+      var userID = connection.sessionInfo.userID;
+      var sessionID = connection.sessionInfo.sessionID;
+
+      authStore.validUserSession(sessionID, userID, function (err, userSessions){
+
+        if(!err && userSessions !== undefined && userSessions[sessionID] !== undefined){
+          delete userSessions[sessionID][connID];
+          authStore.updateUserSession(userID, userSessions, callBack);        
+        }
+        else{
+          if(typeof callBack === "function") callBack("sessionID doesn't exist in UserSessions for UserID", false);
+        }
+
+      });
+    }
+    else{
+      if(typeof callBack === "function") callBack("sessionInfo not found on connection", false);
+    }
+  }
+
+
+  function updateConnectionUserID (connection, userID, callBack){
+    connection.userID = userID;
+    connection.oldToken = connection.token;
+    connection.token = helper.makeUniqueHash('sha1', connection.key, [connection.userID]);
+    if(typeof callBack === "function") callBack(connection.token, userID);
+  }
+
+
+
+
+
+  function getConnectionSessionInfo(connection, callBack){
+    var sessionInfo = connection.sessionInfo || {};
+    sessionID = sessionInfo.sessionID || ("anon" + helper.makeIdAlpha(15));
+    userID = sessionInfo.userID || ("userID" + helper.makeIdAlpha(15));
+    if(typeof callBack === "function") callBack(sessionID, userID);
+  }
+
+
+  function userSessionExists(userID, source, callBack){
+
+    if(userSessions[userID]){
+      if(typeof callBack === "function") callBack(true, "local");
+    }
+    else{
+      if(config.interProcess === true){
+        ipc.store.hexists("userSessions", userID, function(err, reply){
+          if(reply == 1){
+            if(typeof callBack === "function") callBack(true, "foreign");
+          }
+          else{
+            if(typeof callBack === "function") callBack(false, false);
+          }
+        });
+      }
+      else{
+        if(typeof callBack === "function") callBack(false, false);
+      }
+    }
+  }
+
+
+
+  /**
+   * Connection Initialization Methods
+   * Called for every new connection
+   *
+   * @opts: {Object} contains the connection's options
+   * @connection: {SamsaaraConnection} the connection that is initializing
+   * @attributes: {Attributes} The attributes of the SamsaaraConnection and its methods
+   */
+
+  function connectionInitialzation(opts, connection, attributes){
+    if(opts.session !== undefined){
+      console.log("Initializing Authentication..###", opts.auth, connection.id);
+      attributes.force("authentication");
+      attributes.initialized(null, "authentication");
+    }
+  }
+
+
+  function connectionClosing(connection){
+    var connID = connection.id;
+  }
+
+
+  /**
+   * Module Return Function.
+   * Within this function you should set up and return your samsaara middleWare exported
+   * object. Your eported object can contain:
+   * name, foundation, remoteMethods, connectionInitialization, connectionClose
+   */
+
+  return function authentication(samsaaraCore){
+
+    // console.log(samsaaraCore,);
+    samsaara = samsaaraCore;
+    config = samsaaraCore.config;
+    connectionController = samsaaraCore.connectionController;
+    communication = samsaaraCore.communication;
+    ipc = samsaaraCore.ipcRedis;
+
+
+    if(config.interProcess === true){
+      authStore = require('./authentication-redis');
+      authStore.initialize(config, ipc);
+    }
+    else{
+      authStore = require('./authentication-memory');
+    }
+
+    addUserSession = authStore.addUserSession;
+    removeUserSession = authStore.removeUserSession;
+
+    getRequestSessionInfo = authStore.getRequestSessionInfo;
+    retrieveRegistrationToken = authStore.retrieveRegistrationToken;
+    validateRegistrationToken = authStore.validateRegistrationToken;
+
+
+    samsaaraCore.addClientGetRoute('/registerSamsaaraConnection', function (req, res){
+
+      var registrationToken = req.query.regtoken;
+
+      retrieveRegistrationToken(registrationToken, function (err, reply){
+        if(err === null){
+          
+          getRequestSessionInfo(req.sessionID, function (sessionID, userID){              
+            var keyObject = { sessionID: sessionID, userID: userID, tokenKey: reply };
+            res.send(keyObject);
+          });
+        }
+        else{
+          res.send({ err: err });
+        }
+      });
+    });
+
+    var exported = {
+
+      name: "authentication",
+
+      foundationMethods: {
+        addUserSession: addUserSession
+      },
+
+      remoteMethods: {
+        login: loginConnection,
+        requestRegistrationToken: requestRegistrationToken
+      },
+
+      connectionInitialization: {
+        authentication: connectionInitialzation
+      },
+
+      connectionClose: {
+        authentication: connectionClosing        
+      }
+    };
+
+    return exported;
+
+  };
+
+}
+
+module.exports = exports = authentication;
