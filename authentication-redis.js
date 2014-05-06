@@ -95,6 +95,7 @@ exports.removeUserSession = function(sessionID, userID, callBack){
         });
       }
       else{
+        
         ipc.store.hset("userSessions", userID, JSON.stringify(userSessions), function (err, reply){
           if(!err)
             if(typeof callBack === "function") callBack(err, reply);

@@ -23,27 +23,35 @@ function authentication(options){
       retrieveRegistrationToken,
       validateRegistrationToken;
 
+  var sessions = {};
+  var userSessions = { activeSessions: {} };
+
 
   /**
    * Foundation Methods
    */
 
 
-  function loginConnection(loginObject, regToken){
+  function requestRegistrationToken(callBack){
 
+    console.log(config.uuid, "Authentication", "CLIENT, requesting login Token", this.id);
+
+    authStore.generateRegistrationToken(this.id, function (err, regtoken){
+      if(typeof callBack === "function") callBack(err, regtoken);
+    });
+  }
+
+  function loginConnection(loginObject, regToken){
 
     console.log("Logging in connection", this.id, loginObject, regToken);
 
-
     var connection = this;
-
-    // var loginObject = JSON.parse(messageObj.login[1]) || null;
     var regTokenSalt = loginObject.tokenKey || null;
     // var regToken = messageObj.login[0] || null;
 
     // log.info(process.pid, moduleName, "messageObj.login", loginObject, regToken, regTokenSalt);
 
-    validateRegistrationToken(connection.id, regToken, regTokenSalt, function (err, reply){
+    authStore.validateRegistrationToken(connection.id, regToken, regTokenSalt, function (err, reply){
 
       console.log("validateRegistrationToken", connection.id, err, reply, loginObject, regToken);
 
@@ -62,13 +70,9 @@ function authentication(options){
             communication.sendToClient( connection.id, { internal: "reportError", args: [187, err, "Invalid Token Initiation: Session either Expired or Invalid"] });
           }
           else if(err === null && userID === loginObject.userID){
-
             // log.info(process.pid, moduleName, "SENDING TOKEN TO", connection.id, userID, token);
             samsaara.emit("connectionLoggedIn", connection, loginObject);
-
             communication.sendToClient( connection.id, { internal: "updateToken", args: [connection.oldToken, token]}, function (token){
-              // 'this' is now the one returning the callBack.
-              // log.info(process.pid, moduleName, "DELETING OLD TOKEN for", this.id, this.oldToken, token);
               this.oldToken = null;
             });
           }
@@ -80,18 +84,6 @@ function authentication(options){
     });
   }
 
-  function requestRegistrationToken(callBack){
-
-    console.log(config.uuid, "Authentication", "CLIENT, requesting login Token", this.id);
-
-    authStore.generateRegistrationToken(this.id, function (err, regtoken){
-      if(typeof callBack === "function") callBack(err, regtoken);
-    });
-  }
-
-  function setRedisStore(){
-
-  }
 
   function initiateUserToken(conn, sessionID, userID, callBack){
 
@@ -239,6 +231,7 @@ function authentication(options){
     }
     else{
       authStore = require('./authentication-memory');
+      authStore.initialize(config, sessions, userSessions);
     }
 
     addUserSession = authStore.addUserSession;
@@ -272,7 +265,8 @@ function authentication(options){
       name: "authentication",
 
       foundationMethods: {
-        addUserSession: addUserSession
+        addUserSession: addUserSession,
+        removeUserSession: removeUserSession
       },
 
       remoteMethods: {

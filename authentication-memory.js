@@ -1,19 +1,23 @@
-var authentication = require('./authentication');
-var sessions = authentication.sessions;
-var userSessions = authentication.userSessions;
+var authentication = require('./main.js');
+var sessions, userSessions, config;
 
 
 var path = require("path");
-var log = require("./log.js");
 var moduleName = path.basename(module.filename);
 var processID = process.pid.toString();
 var helper = require("./helper.js");
-var config = require("./config.js");
 
 
 var regTokens = {};
 
 exports = module.exports;
+
+
+exports.initialize = function(samsaaraConfig, samsaaraSessions, samsaaraUserSessions){
+  config = samsaaraConfig;
+  sessions = samsaaraSessions;
+  userSessions = samsaaraUserSessions;
+};
 
 /**
  * User Session Methods
@@ -21,7 +25,11 @@ exports = module.exports;
 
 var validUserSession = exports.validUserSession = function(sessionID, userID, callBack){
 
+  console.log("Memory validUserSession", userSessions, sessionID, userID);
+
   if(sessionID !== undefined && userID !== undefined){
+
+
 
     if(userSessions[userID] !== undefined){
       console.log("USER SESSIONS", userID, userSessions[userID]);
@@ -45,6 +53,7 @@ var validUserSession = exports.validUserSession = function(sessionID, userID, ca
 };
 
 exports.addUserSession = function (sessionID, userID, callBack){
+
     sessions[sessionID] = userID;
 
     if(userSessions[userID] === undefined){
@@ -58,14 +67,18 @@ exports.addUserSession = function (sessionID, userID, callBack){
     if(typeof callBack === "function") callBack (null, true);
 };
 
-exports.removeUserSession = function(sessionID, userID, callBack){
+exports.removeUserSession = function(sessionID, userID){
+
 
   delete sessions[sessionID];
-  delete userSessions[userID].activeSessions[sessionID];
 
-  if(Object.keys(userSessions[userID].activeSessions).length === 0){
-    delete userSessions[userID];
+  if(userSessions[userID] && userSessions[userID].activeSessions){
+    delete userSessions[userID].activeSessions[sessionID];
+    if(Object.keys(userSessions[userID].activeSessions).length === 0){
+      delete userSessions[userID];
+    }
   }
+
 };
 
 exports.updateUserSession = function(userID, usersSessions, callBack){
@@ -87,7 +100,6 @@ exports.addNewConnectionSession = function(connID, userID, sessionID, usersSessi
 exports.getRequestSessionInfo = function(sessionID, callBack){
   if(typeof callBack === "function") callBack(sessionID, sessions[sessionID]);
 };
-
 
 
 /**
@@ -129,7 +141,9 @@ exports.validateRegistrationToken = function(connID, regtoken, tokenSalt, callBa
     if(typeof callBack === "function") callBack("invalidRegistrationToken", false);
   }
 
-  delete regTokens[tokenString];    
+  console.log("Reg Tokens", regTokens)
+
+  delete regTokens[tokenReply];    
 };
 
 var tokenRequestCounter = 0;
