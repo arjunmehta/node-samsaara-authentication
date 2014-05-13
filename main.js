@@ -1,6 +1,6 @@
 /*!
- * Samsaara Groups Module
- * Copyright(c) 2013 Arjun Mehta <arjun@newlief.com>
+ * Samsaara Authentication Module
+ * Copyright(c) 2014 Arjun Mehta <arjun@newlief.com>
  * MIT Licensed
  */
 
@@ -23,8 +23,8 @@ function authentication(options){
       retrieveRegistrationToken,
       validateRegistrationToken;
 
-  var sessions = {};
-  var userSessions = { activeSessions: {} };
+  var sessions = {}; // holds sessions associated with userID ie: sessions[sessionID] = userID;
+  var userSessions = {}; // holds all sessions associated with a userID ie. userSessions.activeSessions[userID] = {sessionID1: true, sessionID2: true}
 
 
   /**
@@ -34,18 +34,18 @@ function authentication(options){
 
   function requestRegistrationToken(callBack){
 
-    console.log(config.uuid, "Authentication", "CLIENT, requesting login Token", this.id);
+    console.log(config.uuid, "Authentication", "CLIENT, requesting login Token", this.connection.id);
 
-    authStore.generateRegistrationToken(this.id, function (err, regtoken){
+    authStore.generateRegistrationToken(this.connection.id, function (err, regtoken){
       if(typeof callBack === "function") callBack(err, regtoken);
     });
   }
 
   function loginConnection(loginObject, regToken){
 
-    console.log("Logging in connection", this.id, loginObject, regToken);
+    console.log("Logging in connection", this.connection.id, loginObject, regToken);
 
-    var connection = this;
+    var connection = this.connection;
     var regTokenSalt = loginObject.tokenKey || null;
     // var regToken = messageObj.login[0] || null;
 
@@ -73,7 +73,7 @@ function authentication(options){
             // log.info(process.pid, moduleName, "SENDING TOKEN TO", connection.id, userID, token);
             samsaara.emit("connectionLoggedIn", connection, loginObject);
             communication.sendToClient( connection.id, { internal: "updateToken", args: [connection.oldToken, token]}, function (token){
-              this.oldToken = null;
+              connection.oldToken = null;
             });
           }
         });
@@ -185,8 +185,23 @@ function authentication(options){
 
 
 
+
+
+
+  function connectionPreInitialization(connection){
+
+    connection.userID = 'anonymous' + helper.makePseudoRandomID();
+    connection.key = helper.makePseudoRandomID() + connection.id;
+    connection.token = helper.makeUniqueHash('sha1', connection.key, [connection.userID]);
+
+    connection.write(JSON.stringify(["initToken",{
+      samsaaraToken: connection.token
+    }]));
+
+  }
+
   /**
-   * Connection Initialization Methods
+   * Connection Initialization Method
    * Called for every new connection
    *
    * @opts: {Object} contains the connection's options
@@ -195,8 +210,9 @@ function authentication(options){
    */
 
   function connectionInitialzation(opts, connection, attributes){
+
     if(opts.session !== undefined){
-      console.log("Initializing Authentication..###", opts.auth, connection.id);
+      console.log("Initializing Authentication..###", opts.session, connection.id);
       attributes.force("authentication");
       attributes.initialized(null, "authentication");
     }
@@ -204,7 +220,18 @@ function authentication(options){
 
 
   function connectionClosing(connection){
-    var connID = connection.id;
+    removeConnectionSession(connection.id);
+  }
+
+
+  function preRouteAuthentication(connection, owner, messageAttributes, newPrepend, message, next){
+    var token = messageAttributes[messageAttributes.indexOf("TKN")+1];
+    if(token === connection.token || token === connection.oldToken){
+      next();
+    }
+    else{
+      next("Invalid Token");
+    }
   }
 
 
@@ -260,6 +287,8 @@ function authentication(options){
       });
     });
 
+    samsaaraCore.addClientFileRoute("samsaara-authentication.js", __dirname + '/client/samsaara-authentication.js');
+
     var exported = {
 
       name: "authentication",
@@ -274,14 +303,24 @@ function authentication(options){
         requestRegistrationToken: requestRegistrationToken
       },
 
+      connectionPreInitialization: {
+        authentication: connectionPreInitialization
+      },
+
       connectionInitialization: {
         authentication: connectionInitialzation
       },
 
       connectionClose: {
         authentication: connectionClosing        
-      }
+      },
+
+      preRouteFilters:{}
     };
+
+    if(options.strict === true){
+      exported.preRouteFilters.preRouteAuthentication = preRouteAuthentication;
+    }
 
     return exported;
 

@@ -141,7 +141,7 @@ exports.validateRegistrationToken = function(connID, regtoken, tokenSalt, callBa
     if(typeof callBack === "function") callBack("invalidRegistrationToken", false);
   }
 
-  console.log("Reg Tokens", regTokens)
+  console.log("Reg Tokens", regTokens);
 
   delete regTokens[tokenReply];    
 };

@@ -15,7 +15,7 @@ var config, ipc;
 exports = module.exports;
 
 
-/**
+/*
  * User Session Methods
  */
 
@@ -46,7 +46,6 @@ var validUserSession = exports.validUserSession = function(sessionID, userID, ca
       if(reply !== null){
 
         console.log("validUserSession Reply", reply);
-
 
         var theUsersSessions = JSON.parse(reply);
 
@@ -144,7 +143,7 @@ exports.addNewConnectionSession = function(connID, userID, sessionID, userSessio
 
 
 
-/**
+/*
  * Redis User Session Methods
  */
 
@@ -208,7 +207,7 @@ function registerRedisUserSession(theUsersSessions, sessionID, userID, callBack)
 }
 
 
-/**
+/*
  * Session Info Methods
  */
 
@@ -221,7 +220,7 @@ exports.getRequestSessionInfo = function(sessionID, callBack){
 };
 
 
-/**
+/*
  * Registration Token Methods
  */
 
