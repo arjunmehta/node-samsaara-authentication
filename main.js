@@ -293,6 +293,8 @@ function authentication(options){
 
       name: "authentication",
 
+      clientScript: __dirname + '/client/samsaara-authentication.js', 
+
       foundationMethods: {
         addUserSession: addUserSession,
         removeUserSession: removeUserSession
