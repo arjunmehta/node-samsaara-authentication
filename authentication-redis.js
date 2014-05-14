@@ -1,15 +1,17 @@
 /*!
  * Samsaara - Authentication Methods for Redis
- * Copyright(c) 2013 Arjun Mehta <arjun@newlief.com>
+ * Copyright(c) 2014 Arjun Mehta <arjun@newlief.com>
  * MIT Licensed
  */
 
+
 var authentication = require('./main');
 
-var path = require("path");
+var debug = require('debug')('samsaara:authentication:ipcRedis');
+var debugError = require('debug')('samsaara:authentication:ipcRedis:error');
+
 var helper = require('./helper');
-var moduleName = path.basename(module.filename);
-var processID = process.pid.toString();
+
 var config, ipc;
 
 exports = module.exports;
@@ -27,25 +29,23 @@ exports.initialize = function(samsaaraConfig, samsaaraIpc){
 
 var validUserSession = exports.validUserSession = function(sessionID, userID, callBack){
 
-  console.log("validUserSession", sessionID, userID);
+  debug("Valid User Session", sessionID, userID);
 
   if(sessionID !== undefined && userID !== undefined){
     ipc.store.hget("userSessions", userID, function (err, reply){
 
 
-      console.log("validUserSession Result", err, reply);
-
-      // log.info(processID, moduleName, "REDIS SESSION VALIDATION", err, reply);
+      debug("Valid UserSession Result", err, reply);
 
       if(err !== null){
-        // log.error(processID, moduleName, "USER SESSION QUERY ERROR:", err);
+        debugError("Valid User Session Error", "USER SESSION QUERY ERROR:", err);
         // if(typeof callBack === "function") callBack(null, null);
-        console.log("validUserSession Error", err);
+        debug("validUserSession Error", err);
       }
 
       if(reply !== null){
 
-        console.log("validUserSession Reply", reply);
+        debug("validUserSession Reply", reply);
 
         var theUsersSessions = JSON.parse(reply);
 
@@ -75,7 +75,7 @@ exports.addUserSession = function (sessionID, userID, callBack){
     });
   });
 
-  console.log(moduleName, "Trying to add Redis Session");
+  debug("Add User Session", "Trying to add Redis Session");
 };
 
 exports.removeUserSession = function(sessionID, userID, callBack){
@@ -99,7 +99,7 @@ exports.removeUserSession = function(sessionID, userID, callBack){
           if(!err)
             if(typeof callBack === "function") callBack(err, reply);
           else{
-            // log.info(processID, moduleName, "REDIS USER SESSION DELETE ERROR", err);
+            debug("remove User Session Error:", "REDIS USER SESSION DELETE ERROR", err);
           }
         });
       }
@@ -117,7 +117,7 @@ exports.updateUserSession = function(userID, userSessions, callBack){
       if(typeof callBack === "function") callBack(null, userSessions);
     }
     else{
-      // log.error(processID, moduleName, "REDIS USER SESSION DELETE ERROR", err);
+      debugError("Update User Session Error:", "REDIS USER SESSION DELETE ERROR", err);
       if(typeof callBack === "function") callBack(err, null);
     }
   });
@@ -133,7 +133,7 @@ exports.addNewConnectionSession = function(connID, userID, sessionID, userSessio
       if(typeof callBack === "function") callBack(null, userSessions);
     }
     else{
-      console.log(processID, moduleName, "REDIS USER SESSION UPDATE ERROR", err);
+      debug("Add New Connection Session", "Error", err);
       if(typeof callBack === "function") callBack(err, null);
     }
   });
@@ -149,12 +149,13 @@ exports.addNewConnectionSession = function(connID, userID, sessionID, userSessio
 
 function addRedisUserSession(sessionID, userID, callBack){
 
-  console.log("addRedisUserSession Testing", sessionID, userID);
+  debug("Add Redis User Session Testing", sessionID, userID);
 
   validUserSession(sessionID, userID, function(err, theUsersSessions){
 
     if(err === "sessionUnregistered" && theUsersSessions !== null){
-      // log.info(processID, moduleName, "UserID exists but session unregistered on Redis");
+
+      debug("Valid User Session", "UserID exists and session unregistered on Redis");
 
       registerRedisUserSession(theUsersSessions, sessionID, userID, function (err, reply){
         if(err){
@@ -167,12 +168,11 @@ function addRedisUserSession(sessionID, userID, callBack){
     }
     else if(err === "userIDUnregistered" && theUsersSessions === null){
 
-      // log.info(processID, moduleName, "User ID doesn't exist, creating new Redis Hash");
-      console.log("addRedisUserSession", "userIDUnregistered");
+      debugError("Invalid User Session", "User ID doesn't exist, creating new Redis Hash");
 
       registerRedisUserSession({}, sessionID, userID, function (err, reply){
 
-        console.log("registerRedisUserSession", err, reply);
+        debug("Register Redis User Session", err, reply);
 
         if(err !== null){
           if(typeof callBack === "function") callBack(err, null);
@@ -185,11 +185,11 @@ function addRedisUserSession(sessionID, userID, callBack){
       });
     }
     else if(err === null && theUsersSessions !== null){ // very very unlikely
-      // log.info(processID, moduleName, "REDIS Session Addition for User", userID, sessionID, "already exists"); // Session Exists already!
+      debugError("Invalid User Session", "REDIS Session Addition for User", userID, sessionID, "already exists"); // Session Exists already!
       if(typeof callBack === "function") callBack("existsAlready", null);
     }
     else{
-      // log.error(processID, moduleName, "REDIS Incorrect/Invalid Setting for Redis Session Addition", userID, sessionID); // notValid Input
+      debugError("Invalid User Session Settings", "REDIS Incorrect/Invalid Setting for Redis Session Addition", userID, sessionID); // notValid Input
       if(typeof callBack === "function") callBack("invalid", null);
     }
   });
@@ -198,10 +198,8 @@ function addRedisUserSession(sessionID, userID, callBack){
 function registerRedisUserSession(theUsersSessions, sessionID, userID, callBack){
 
   theUsersSessions[sessionID] = {};
-  // log.info(processID, moduleName, "REGISTER REDIS SESSION", theUsersSessions);
 
   ipc.store.hset("userSessions", userID, JSON.stringify(theUsersSessions), function (err, reply){
-    // log.info(processID, moduleName, "creating userID", userID, theUsersSessions, err, reply);
     if(typeof callBack === "function") callBack(err, reply);
   });
 }
@@ -230,15 +228,12 @@ exports.generateRegistrationToken = function(connID, callBack){
   var regtoken = helper.makeUniqueHash("sha1", "Registration Key", [connID.toString(), tokenSalt]);
 
   ipc.store.setex("samsaara:regtoken:" + regtoken, 10, tokenSalt, function (err, reply){
-    // log.info(processID, moduleName, "GENERATING REGISTRATION TOKEN FOR", connID, regtoken, tokenSalt, err, reply);
     if(typeof callBack === "function") callBack(null, regtoken);
   });
 };
 
 exports.retrieveRegistrationToken = function(regtoken, callBack){
   ipc.store.get("samsaara:regtoken:" + regtoken, function (err, reply){
-
-    // log.info(processID, moduleName, "RETRIEVING REGISTRATION TOKEN", regtoken, err, reply);
 
     if(err === null && reply !== null){
       if(typeof callBack === "function") callBack(null, reply);
@@ -253,7 +248,7 @@ exports.validateRegistrationToken = function(connID, regtoken, tokenSalt, callBa
 
   ipc.store.get("samsaara:regtoken:" + regtoken, function (err, reply){
 
-    console.log(config.uuid, "Auth Store Redis", "VALIDATING REGISTRATION TOKEN FOR", connID, err, reply, tokenSalt);
+    debug("Validate Registration Token", "Auth Store Redis", "VALIDATING REGISTRATION TOKEN FOR", connID, err, reply, tokenSalt);
 
     if(err === null){
       if(tokenSalt === reply){
@@ -272,7 +267,6 @@ exports.validateRegistrationToken = function(connID, regtoken, tokenSalt, callBa
       }
 
       ipc.store.del("samsaara:regtoken:" + regtoken, function (err, reply){
-        // log.info(processID, moduleName, "DELETED REGTOKEN:", regtoken, err, reply);
       });
     }
     else{

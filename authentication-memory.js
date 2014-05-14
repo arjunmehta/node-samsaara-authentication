@@ -1,12 +1,14 @@
+/*!
+ * Samsaara - Authentication Methods for Memory
+ * Copyright(c) 2014 Arjun Mehta <arjun@newlief.com>
+ * MIT Licensed
+ */
+
+var debug = require('debug')('samsaara:authentication:memory');
 var authentication = require('./main.js');
 var sessions, userSessions, config;
 
-
-var path = require("path");
-var moduleName = path.basename(module.filename);
-var processID = process.pid.toString();
 var helper = require("./helper.js");
-
 
 var regTokens = {};
 
@@ -25,14 +27,14 @@ exports.initialize = function(samsaaraConfig, samsaaraSessions, samsaaraUserSess
 
 var validUserSession = exports.validUserSession = function(sessionID, userID, callBack){
 
-  console.log("Memory validUserSession", userSessions, sessionID, userID);
+  debug("Valid User Session", userSessions, sessionID, userID);
 
   if(sessionID !== undefined && userID !== undefined){
 
-
-
     if(userSessions[userID] !== undefined){
-      console.log("USER SESSIONS", userID, userSessions[userID]);
+
+      debug("Valid User Session: User Sessions", userID, userSessions[userID]);
+
       var theUsersSessions = userSessions[userID].activeSessions;
 
       if(theUsersSessions[sessionID] !== undefined){
@@ -141,7 +143,7 @@ exports.validateRegistrationToken = function(connID, regtoken, tokenSalt, callBa
     if(typeof callBack === "function") callBack("invalidRegistrationToken", false);
   }
 
-  console.log("Reg Tokens", regTokens);
+  debug("Validate Registration Token", "Reg Tokens", regTokens);
 
   delete regTokens[tokenReply];    
 };

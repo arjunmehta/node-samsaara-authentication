@@ -4,9 +4,8 @@
  * MIT Licensed
  */
 
-
+var debug = require('debug')('samsaara:authentication');
 var helper = require('./helper');
-
 
 function authentication(options){
 
@@ -34,7 +33,7 @@ function authentication(options){
 
   function requestRegistrationToken(callBack){
 
-    console.log(config.uuid, "Authentication", "CLIENT, requesting login Token", this.connection.id);
+    debug("Request Registration Token", config.uuid, "Authentication", "CLIENT, requesting login Token", this.connection.id);
 
     authStore.generateRegistrationToken(this.connection.id, function (err, regtoken){
       if(typeof callBack === "function") callBack(err, regtoken);
@@ -43,7 +42,7 @@ function authentication(options){
 
   function loginConnection(loginObject, regToken){
 
-    console.log("Logging in connection", this.connection.id, loginObject, regToken);
+    debug("Logging in Connection", this.connection.id, loginObject, regToken);
 
     var connection = this.connection;
     var regTokenSalt = loginObject.tokenKey || null;
@@ -53,7 +52,7 @@ function authentication(options){
 
     authStore.validateRegistrationToken(connection.id, regToken, regTokenSalt, function (err, reply){
 
-      console.log("validateRegistrationToken", connection.id, err, reply, loginObject, regToken);
+      debug("Validate Registration Token", connection.id, err, reply, loginObject, regToken);
 
       if(err === null){
 
@@ -87,17 +86,17 @@ function authentication(options){
 
   function initiateUserToken(conn, sessionID, userID, callBack){
 
-    // console.log("INITIATING USER TOKEN", conn.id, sessionID, userID);
+    // debug("INITIATING USER TOKEN", conn.id, sessionID, userID);
 
     authStore.validUserSession(sessionID, userID, function (err, userSessions){
 
-      // console.log("validUserSession", sessionID, userID);
+      // debug("validUserSession", sessionID, userID);
 
       if(err === null && userSessions !== undefined){
 
         authStore.addNewConnectionSession(conn.id, userID, sessionID, userSessions, function (err, userSessions){
 
-          // console.log("addNewConnectionSession", userSessions);
+          // debug("addNewConnectionSession", userSessions);
 
           if(err === null){
             updateConnectionUserID(conn, userID, function (token, userID){
@@ -212,7 +211,7 @@ function authentication(options){
   function connectionInitialzation(opts, connection, attributes){
 
     if(opts.session !== undefined){
-      console.log("Initializing Authentication..###", opts.session, connection.id);
+      debug("Initializing Authentication...", opts.session, connection.id);
       attributes.force("authentication");
       attributes.initialized(null, "authentication");
     }
@@ -244,7 +243,7 @@ function authentication(options){
 
   return function authentication(samsaaraCore){
 
-    // console.log(samsaaraCore,);
+    // debug(samsaaraCore,);
     samsaara = samsaaraCore;
     config = samsaaraCore.config;
     connectionController = samsaaraCore.connectionController;
