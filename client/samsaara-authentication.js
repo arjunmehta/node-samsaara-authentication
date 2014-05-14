@@ -24,7 +24,7 @@ var samaaraAuthentication = function(options){
   }
 
   function newConnectionAuthentication(){
-    // console.log("*******************ATTEMPTING TO LOG IN SESSION");
+    console.log("*******************ATTEMPTING TO LOG IN SESSION");
     samsaara.nsFunc("internal", "requestRegistrationToken", function (err, registrationToken){
       httpGet("/registerSamsaaraConnection?regtoken=" + registrationToken, function (sessionInfo){
         var sessionInfoParsed = JSON.parse(sessionInfo);
