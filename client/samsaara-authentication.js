@@ -1,16 +1,21 @@
 /*!
  * Samsaara Authentication Module
+ *
  * Copyright(c) 2014 Arjun Mehta <arjun@newlief.com>
  * MIT Licensed
  */
 
 var samaaraAuthentication = function(options){
 
+  authenticationDebug = debug('samsaara:authentication');
+
+
   var samsaara, attributes;
   var samsaaraToken = "";
 
+
   function updateToken(oldToken, newToken, callBack){
-    console.log("UPDATING TOKEN", oldToken, newToken);
+    authenticationDebug("UPDATING TOKEN", oldToken, newToken);
 
     if(samsaaraToken === oldToken){
       samsaara.emitEvent("authenticated", [samsaara.sessionInfo.userID]);
@@ -23,28 +28,35 @@ var samaaraAuthentication = function(options){
     }
   }
 
+
   function newConnectionAuthentication(){
-    console.log("*******************ATTEMPTING TO LOG IN SESSION");
+
+    authenticationDebug("*******************ATTEMPTING TO LOG IN SESSION");
+
     samsaara.nsFunc("internal", "requestRegistrationToken", function (err, registrationToken){
+    
       httpGet("/registerSamsaaraConnection?regtoken=" + registrationToken, function (sessionInfo){
+    
         var sessionInfoParsed = JSON.parse(sessionInfo);
+    
         if(sessionInfo.err === undefined){
           samsaara.sessionInfo = {sessionID: sessionInfoParsed.sessionID, userID: sessionInfoParsed.userID};
-          samsaara.nsFunc("internal", "login", JSON.parse(sessionInfo), registrationToken);
-        // JSON.stringify( [samsaaraOwner, {login: [registrationToken, sessionInfo]}]
+          samsaara.nsFunc("internal", "login", JSON.parse(sessionInfo), registrationToken);        
         }
       });
     });    
   }
 
+
   function initToken(messageObj){
     if(messageObj.samsaaraToken !== undefined){
       samsaaraToken = messageObj.samsaaraToken;
-      console.log("Token Received:", samsaaraToken);
+      authenticationDebug("Token Received:", samsaaraToken);
       attributes.initializedAttribute("initToken");  
       attributes.updateHeaderList("TKN", samsaaraToken);
     }
   }
+
 
   function httpGet(theUrl, callBack){
     var xmlHttp = null;
@@ -56,6 +68,7 @@ var samaaraAuthentication = function(options){
     if(callBack) callBack(xmlHttp.responseText);
     else return xmlHttp.responseText;
   }
+
 
   return function authentication(samsaaraCore, samsaaraAttributes){
 
