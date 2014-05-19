@@ -66,12 +66,12 @@ function authentication(options){
 
           if(err !== null){
             // log.error(process.pid, moduleName, "TOKEN ASSIGNMENT ERROR", err);
-            communication.sendToClient( connection.id, { internal: "reportError", args: [187, err, "Invalid Token Initiation: Session either Expired or Invalid"] });
+            connection.execute({ internal: "reportError", args: [187, err, "Invalid Token Initiation: Session either Expired or Invalid"] });
           }
           else if(err === null && userID === loginObject.userID){
             // log.info(process.pid, moduleName, "SENDING TOKEN TO", connection.id, userID, token);
             samsaara.emit("connectionLoggedIn", connection, loginObject);
-            communication.sendToClient( connection.id, { internal: "updateToken", args: [connection.oldToken, token]}, function (token){
+            connection.execute({ internal: "updateToken", args: [connection.oldToken, token]}, function (token){
               connection.oldToken = null;
             });
           }
@@ -223,13 +223,24 @@ function authentication(options){
   }
 
 
-  function preRouteAuthentication(connection, owner, messageAttributes, newPrepend, message, next){
-    var token = messageAttributes[messageAttributes.indexOf("TKN")+1];
-    if(token === connection.token || token === connection.oldToken){
-      next();
+  //
+  // When in strict authentication mode, this method is executed on every single incoming message
+  //
+  
+  function preRouteAuthentication(connection, owner, headerAttributes, newHeader, message, next){
+    var index = headerAttributes.indexOf("TKN");
+
+    if(index !== -1){
+      var token = headerAttributes[index+1];
+      if(token === connection.token || token === connection.oldToken){
+        next();
+      }
+      else{
+        next("Authentication Strict Mode: Invalid Token");
+      }
     }
     else{
-      next("Invalid Token");
+      next("Authentication Strict Mode: No Token In Message");
     }
   }
 
@@ -248,7 +259,7 @@ function authentication(options){
     config = samsaaraCore.config;
     connectionController = samsaaraCore.connectionController;
     communication = samsaaraCore.communication;
-    ipc = samsaaraCore.ipcRedis;
+    ipc = samsaaraCore.ipc;
 
 
     if(config.interProcess === true){
@@ -290,7 +301,7 @@ function authentication(options){
 
     var exported = {
 
-      name: "authentication",
+      name: "identity",
 
       clientScript: __dirname + '/client/samsaara-authentication.js', 
 
