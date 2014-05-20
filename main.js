@@ -9,9 +9,7 @@ var helper = require('./helper');
 
 function authentication(options){
 
-  var config,
-      connectionController,
-      communication,
+  var processUuid,
       ipc,
       authStore,
       samsaara;
@@ -33,7 +31,7 @@ function authentication(options){
 
   function requestRegistrationToken(callBack){
 
-    debug("Request Registration Token", config.uuid, "Authentication", "CLIENT, requesting login Token", this.connection.id);
+    debug("Request Registration Token", processUuid, "Authentication", "CLIENT, requesting login Token", this.connection.id);
 
     authStore.generateRegistrationToken(this.connection.id, function (err, regtoken){
       if(typeof callBack === "function") callBack(err, regtoken);
@@ -46,7 +44,6 @@ function authentication(options){
 
     var connection = this.connection;
     var regTokenSalt = loginObject.tokenKey || null;
-    // var regToken = messageObj.login[0] || null;
 
     // log.info(process.pid, moduleName, "messageObj.login", loginObject, regToken, regTokenSalt);
 
@@ -62,7 +59,7 @@ function authentication(options){
 
         // generates a new token for the connection.
         // integrated check for session validity.
-        initiateUserToken( connectionController.connections[connection.id], loginObject.sessionID, loginObject.userID, function (err, token, userID){
+        initiateUserToken( connection, loginObject.sessionID, loginObject.userID, function (err, token, userID){
 
           if(err !== null){
             // log.error(process.pid, moduleName, "TOKEN ASSIGNMENT ERROR", err);
@@ -114,11 +111,9 @@ function authentication(options){
     });
   }
 
-  function removeConnectionSession(connID, callBack){
+  function removeConnectionSession(connection, callBack){
 
-    var connection = connectionController.connections[connID];
-
-    if(connection !== undefined && connection.sessionInfo !== undefined){
+    if(connection.sessionInfo !== undefined){
 
       var userID = connection.sessionInfo.userID;
       var sessionID = connection.sessionInfo.sessionID;
@@ -219,7 +214,7 @@ function authentication(options){
 
 
   function connectionClosing(connection){
-    removeConnectionSession(connection.id);
+    removeConnectionSession(connection);
   }
 
 
@@ -254,15 +249,11 @@ function authentication(options){
 
   return function authentication(samsaaraCore){
 
-    // debug(samsaaraCore,);
-    samsaara = samsaaraCore;
-    config = samsaaraCore.config;
-    connectionController = samsaaraCore.connectionController;
-    communication = samsaaraCore.communication;
+    samsaara = samsaaraCore.samsaara;
+    processUuid = samsaaraCore.uuid;
     ipc = samsaaraCore.ipc;
 
-
-    if(config.interProcess === true){
+    if(samsaaraCore.capability.ipc === true){
       authStore = require('./authentication-redis');
       authStore.initialize(config, ipc);
     }
@@ -305,7 +296,7 @@ function authentication(options){
 
       clientScript: __dirname + '/client/samsaara-authentication.js', 
 
-      foundationMethods: {
+      main: {
         addUserSession: addUserSession,
         removeUserSession: removeUserSession
       },
