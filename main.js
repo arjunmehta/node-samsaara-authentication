@@ -9,7 +9,7 @@ var helper = require('./helper');
 
 function authentication(options){
 
-  var processUuid,
+  var core,
       ipc,
       authStore,
       samsaara;
@@ -31,7 +31,7 @@ function authentication(options){
 
   function requestRegistrationToken(callBack){
 
-    debug("Request Registration Token", processUuid, "Authentication", "CLIENT, requesting login Token", this.connection.id);
+    debug("Request Registration Token", core.uuid, "Authentication", "CLIENT, requesting login Token", this.connection.id);
 
     authStore.generateRegistrationToken(this.connection.id, function (err, regtoken){
       if(typeof callBack === "function") callBack(err, regtoken);
@@ -249,8 +249,8 @@ function authentication(options){
 
   return function authentication(samsaaraCore){
 
+    core = samsaaraCore;
     samsaara = samsaaraCore.samsaara;
-    processUuid = samsaaraCore.uuid;
     ipc = samsaaraCore.ipc;
 
     if(samsaaraCore.capability.ipc === true){
