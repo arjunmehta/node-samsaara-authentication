@@ -33,7 +33,7 @@ var samaaraAuthentication = function(options){
 
     authenticationDebug("*******************ATTEMPTING TO LOG IN SESSION");
 
-    samsaara.nsFunc("internal", "requestRegistrationToken", function (err, registrationToken){
+    samsaara.nameSpace("internal").execute("requestRegistrationToken", function (err, registrationToken){
     
       httpGet("/registerSamsaaraConnection?regtoken=" + registrationToken, function (sessionInfo){
     
@@ -41,7 +41,7 @@ var samaaraAuthentication = function(options){
     
         if(sessionInfo.err === undefined){
           samsaara.sessionInfo = {sessionID: sessionInfoParsed.sessionID, userID: sessionInfoParsed.userID};
-          samsaara.nsFunc("internal", "login", JSON.parse(sessionInfo), registrationToken);        
+          samsaara.nameSpace("internal").execute("login", JSON.parse(sessionInfo), registrationToken);        
         }
       });
     });    
