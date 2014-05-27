@@ -63,12 +63,12 @@ function authentication(options){
 
           if(err !== null){
             // log.error(process.pid, moduleName, "TOKEN ASSIGNMENT ERROR", err);
-            connection.execute({ internal: "reportError", args: [187, err, "Invalid Token Initiation: Session either Expired or Invalid"] });
+            connection.executeRaw({ ns:"internal", func:"reportError", args: [187, err, "Invalid Token Initiation: Session either Expired or Invalid"] });
           }
           else if(err === null && userID === loginObject.userID){
             // log.info(process.pid, moduleName, "SENDING TOKEN TO", connection.id, userID, token);
             samsaara.emit("connectionLoggedIn", connection, loginObject);
-            connection.execute({ internal: "updateToken", args: [connection.oldToken, token]}, function (token){
+            connection.executeRaw({ ns:"internal", func:"updateToken", args: [connection.oldToken, token]}, function (token){
               connection.oldToken = null;
             });
           }
