@@ -222,11 +222,11 @@ function authentication(options){
   // When in strict authentication mode, this method is executed on every single incoming message
   //
   
-  function preRouteAuthentication(connection, owner, headerAttributes, newHeader, message, next){
-    var index = headerAttributes.indexOf("TKN");
+  function preRouteAuthentication(connection, headerbits, message, next){
+    var index = headerbits.indexOf("TKN");
 
     if(index !== -1){
-      var token = headerAttributes[index+1];
+      var token = headerbits[index+1];
       if(token === connection.token || token === connection.oldToken){
         next();
       }
