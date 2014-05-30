@@ -218,9 +218,7 @@ function authentication(options){
   }
 
 
-  //
   // When in strict authentication mode, this method is executed on every single incoming message
-  //
   
   function preRouteAuthentication(connection, headerbits, message, next){
     var index = headerbits.indexOf("TKN");
@@ -240,12 +238,10 @@ function authentication(options){
   }
 
 
-  /**
-   * Module Return Function.
-   * Within this function you should set up and return your samsaara middleWare exported
-   * object. Your eported object can contain:
-   * name, foundation, remoteMethods, connectionInitialization, connectionClose
-   */
+  // Module Return Function.
+  // Within this function you should set up and return your samsaara middleWare exported
+  // object. Your eported object can contain:
+  // name, foundation, remoteMethods, connectionInitialization, connectionClose
 
   return function authentication(samsaaraCore){
 
@@ -321,7 +317,7 @@ function authentication(options){
       preRouteFilters:{}
     };
 
-    if(options.strict === true){
+    if(options.strict){
       exported.preRouteFilters.preRouteAuthentication = preRouteAuthentication;
     }
 

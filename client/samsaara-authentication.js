@@ -72,7 +72,7 @@ var samaaraAuthentication = function(options){
 
   return function authentication(samsaaraCore, samsaaraAttributes){
 
-    samsaara = samsaaraCore;
+    samsaara = samsaaraCore.samsaara;
     attributes = samsaaraAttributes;
 
     attributes.force("initToken");
