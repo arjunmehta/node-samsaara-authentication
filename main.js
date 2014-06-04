@@ -29,20 +29,19 @@ function authentication(options){
    */
 
 
-  function requestRegistrationToken(callBack){
+  function requestRegistrationToken(connection, callBack){
 
-    debug("Request Registration Token", core.uuid, "Authentication", "CLIENT, requesting login Token", this.connection.id);
+    debug("Request Registration Token", core.uuid, "Authentication", "CLIENT, requesting login Token", connection.id);
 
-    authStore.generateRegistrationToken(this.connection.id, function (err, regtoken){
+    authStore.generateRegistrationToken(connection.id, function (err, regtoken){
       if(typeof callBack === "function") callBack(err, regtoken);
     });
   }
 
-  function loginConnection(loginObject, regToken){
+  function loginConnection(connection, loginObject, regToken){
 
-    debug("Logging in Connection", this.connection.id, loginObject, regToken);
+    debug("Logging in Connection", connection.id, loginObject, regToken);
 
-    var connection = this.connection;
     var regTokenSalt = loginObject.tokenKey || null;
 
     // log.info(process.pid, moduleName, "messageObj.login", loginObject, regToken, regTokenSalt);

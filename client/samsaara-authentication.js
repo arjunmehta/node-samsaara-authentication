@@ -31,9 +31,9 @@ var samaaraAuthentication = function(options){
 
   function newConnectionAuthentication(){
 
-    authenticationDebug("*******************ATTEMPTING TO LOG IN SESSION");
+    authenticationDebug("*******************ATTEMPTING TO LOG IN SESSION", samsaara.self);
 
-    samsaara.nameSpace("internal").execute("requestRegistrationToken", function (err, registrationToken){
+    samsaara.nameSpace("internal").execute("requestRegistrationToken", samsaara.self, function (err, registrationToken){
     
       httpGet("/registerSamsaaraConnection?regtoken=" + registrationToken, function (sessionInfo){
     
@@ -41,7 +41,7 @@ var samaaraAuthentication = function(options){
     
         if(sessionInfo.err === undefined){
           samsaara.sessionInfo = {sessionID: sessionInfoParsed.sessionID, userID: sessionInfoParsed.userID};
-          samsaara.nameSpace("internal").execute("login", JSON.parse(sessionInfo), registrationToken);        
+          samsaara.nameSpace("internal").execute("login", samsaara.self, JSON.parse(sessionInfo), registrationToken);        
         }
       });
     });    
